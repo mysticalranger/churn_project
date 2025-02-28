@@ -10,12 +10,17 @@ from customer_details import CustomerDetailsApp
 class DashboardApp:
     def __init__(self, root, controller=None, **kwargs):
         self.root = root
-        self.controller = controller  # Store the controller
+        self.controller = controller
         self.frame = None
         self.content_frame = None
         self.create_widgets()
-        # Ensure the dashboard is hidden at creation
         self.hide()
+        
+        # Create a style for hover effects
+        style = ttk.Style()
+        style.configure("TButton", background="#e4e6e9")  # Default background
+        self.hover_style = "Hover.TButton"
+        style.configure(self.hover_style, background="#96a6b5")  # Hover background
         
     def hex_to_rgb(self, hex_color):
         hex_color = hex_color.lstrip('#')
@@ -28,34 +33,22 @@ class DashboardApp:
         return tuple(int(start_rgb[i] + (end_rgb[i] - start_rgb[i]) * factor) for i in range(3))
 
     def animate_hover_in(self, btn, start_color, end_color, steps=10, delay=20, current=0):
-        if current > steps:
-            return
-        start_rgb = self.hex_to_rgb(start_color)
-        end_rgb = self.hex_to_rgb(end_color)
-        factor = current / steps
-        current_rgb = self.interpolate_color(start_rgb, end_rgb, factor)
-        btn.configure(background=self.rgb_to_hex(current_rgb))
-        btn.after(delay, lambda: self.animate_hover_in(btn, start_color, end_color, steps, delay, current+1))
+        # This method can be simplified or removed since ttk uses styles
+        pass
 
     def animate_hover_out(self, btn, start_color, end_color, steps=10, delay=20, current=0):
-        if current > steps:
-            return
-        start_rgb = self.hex_to_rgb(start_color)
-        end_rgb = self.hex_to_rgb(end_color)
-        factor = current / steps
-        current_rgb = self.interpolate_color(start_rgb, end_rgb, factor)
-        btn.configure(background=self.rgb_to_hex(current_rgb))
-        btn.after(delay, lambda: self.animate_hover_out(btn, start_color, end_color, steps, delay, current+1))
+    # This method can be simplified or removed since ttk uses styles
+        pass
 
     def on_hover_enter(self, event):
         btn = event.widget
-        # Animate from normal color to a darker shade
-        self.animate_hover_in(btn, "#e4e6e9", "#96a6b5")  # adjust colors as desired
+        # Apply the hover style
+        btn.configure(style=self.hover_style)
 
     def on_hover_leave(self, event):
         btn = event.widget
-        # Animate back from darkened color to normal color
-        self.animate_hover_out(btn, "#96a6b5", "#e4e6e9")
+        # Revert to the default style
+        btn.configure(style="TButton")
 
     def create_widgets(self):
         """Create an updated, modern dashboard layout with improved styling."""
@@ -65,28 +58,37 @@ class DashboardApp:
         style.configure("Header.TLabel", font=("Helvetica", 18, "bold"), foreground="#333333", background="#f0f2f5")
         style.configure("Nav.TFrame", background="#e4e6e9")
         style.configure("Content.TFrame", background="#ffffff")
+        style.configure("TButton", background="#e4e6e9")  # Default button background
+        style.configure("Hover.TButton", background="#96a6b5")  # Hover button background
         
         # Main container frame using grid
         self.frame = ttk.Frame(self.root, style="TFrame", padding="20")
-        self.frame.grid(sticky="nsew")
+        self.frame.grid(row=0, column=0, sticky="nsew")
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
 
-        # Header frame spanning two columns
+        # Header frame spanning both columns
         header = ttk.Frame(self.frame, style="TFrame")
-        header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0,10))
+        header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
         header.columnconfigure(0, weight=1)
 
         title = ttk.Label(header, text="Churn Prediction Dashboard", style="Header.TLabel")
-        title.grid(row=0, column=0, sticky="w")
+        title.grid(row=0, column=0, sticky="w", padx=10)
 
-        logout_btn = ttk.Button(header, text="Logout", command=self.logout)
-        logout_btn.grid(row=0, column=1, sticky="e")
+        logout_btn = ttk.Button(header, text="Logout", command=self.logout, style="TButton")
+        logout_btn.grid(row=0, column=1, sticky="e", padx=10)
 
-        # Navigation panel on the left with its own style
+        # Navigation panel on the left (fixed width)
         nav_frame = ttk.Frame(self.frame, style="Nav.TFrame", padding="10")
-        nav_frame.grid(row=1, column=0, sticky="ns", padx=(0,10))
+        nav_frame.grid(row=1, column=0, sticky="ns", padx=(0, 10))
+        nav_frame.grid_columnconfigure(0, weight=0)  # Prevent resizing
+        nav_frame.config(width=200)  # Set a fixed width for the navigation panel
 
+        # Content area on the right
+        self.content_frame = ttk.Frame(self.frame, style="Content.TFrame", padding="20")
+        self.content_frame.grid(row=1, column=1, sticky="nsew", padx=(10, 0), pady=10)
+
+        # Add navigation buttons
         buttons = [
             ("Analytics", self.show_analytics),
             ("Customer Details", self.show_customer_details),
@@ -94,21 +96,23 @@ class DashboardApp:
             ("Churn Prediction", self.show_churn_prediction)
         ]
 
-        # Create the content area BEFORE initializing modules
-        self.content_frame = ttk.Frame(self.frame, style="Content.TFrame", padding="20")
-        self.content_frame.grid(row=1, column=1, padx=20, pady=20, sticky="nsew")
-        # Fix: configure grid on self.frame, not DashboardApp (self)
-        self.frame.grid_rowconfigure(1, weight=1)
-        self.frame.grid_columnconfigure(1, weight=1)
-
         for i, (text, command) in enumerate(buttons):
-            # Using tk.Button for animation flexibility
-            btn = tk.Button(nav_frame, text=text, width=20, command=command, bg="#e4e6e9", relief="raised", borderwidth=1, font=("Helvetica", 10))
-            btn.grid(row=i, column=1, pady=8, sticky="w")
+            btn = ttk.Button(nav_frame, text=text, command=command, style="TButton")
+            btn.pack(fill="x", pady=5, padx=5)
+            # Bind hover effects
             btn.bind("<Enter>", self.on_hover_enter)
             btn.bind("<Leave>", self.on_hover_leave)
 
+        # Configure weights for responsiveness
+        self.frame.grid_rowconfigure(1, weight=1)
+        self.frame.grid_columnconfigure(1, weight=1)  # Let content area expand
+        self.content_frame.grid_rowconfigure(0, weight=1)
+        self.content_frame.grid_columnconfigure(0, weight=1)
+
         print("DashboardApp: create_widgets called")
+        
+        # Debug statements
+        self.root.after(100, self.print_debug_info)
         
     def show(self):
         """Show dashboard"""
@@ -134,21 +138,12 @@ class DashboardApp:
             self.content_frame.grid_forget()
         
     def logout(self):
-        """Handle logout"""
-        try:
-            for attr in ['churn_app', 'analytics_app', 'customer_details_app', 'setting_app']:
-                component = getattr(self, attr, None)
-                if component and hasattr(component, 'hide'):
-                    # Only hide if the frame still exists.
-                    if component.frame and component.frame.winfo_exists():
-                        component.hide()
-            # Call the logout routine from controller or on_logout
-            if self.controller:
-                self.controller.logout()
-            elif hasattr(self, 'on_logout'):
-                self.on_logout()
-        except Exception as e:
-            handle_error(e, "Logout failed")
+        """Handler for logout"""
+        print("Logout - showing login screen")
+        if self.controller:
+            self.controller.logout()
+        else:
+            print("Controller not available to handle logout")
             
     def show_analytics(self):
         """Show analytics module"""
@@ -176,6 +171,7 @@ class DashboardApp:
             self.content_frame.update_idletasks()
 
             print("DashboardApp: AnalyticsApp show() completed")
+            self.print_debug_info()
         except Exception as e:
             print(f"DashboardApp: Exception in show_analytics: {e}")
             import traceback
@@ -192,6 +188,7 @@ class DashboardApp:
         self.content_frame.grid_rowconfigure(0, weight=1)
         self.content_frame.grid_columnconfigure(0, weight=1)
         self.content_frame.update_idletasks()
+        self.print_debug_info()
 
         
     def show_settings(self):
@@ -204,6 +201,7 @@ class DashboardApp:
         self.content_frame.grid_rowconfigure(0, weight=1)
         self.content_frame.grid_columnconfigure(0, weight=1)
         self.content_frame.update_idletasks()
+        self.print_debug_info()
 
         
     def show_churn_prediction(self):
@@ -216,6 +214,7 @@ class DashboardApp:
         self.content_frame.grid_rowconfigure(0, weight=1)
         self.content_frame.grid_columnconfigure(0, weight=1)
         self.content_frame.update_idletasks()
+        self.print_debug_info()
 
         
     def clear_content(self):
@@ -271,17 +270,32 @@ class DashboardApp:
         except Exception as e:
             print(f"Debug error: {e}")
             
-    def hide_widget(self, widget):
+    def safe_hide_widget(self, widget):
         if widget and widget.winfo_exists():
-            widget.grid_forget()
+            widget.place_forget()  # or widget.grid_forget() or widget.pack_forget()
         else:
             print("Widget does not exist or has already been destroyed.")
+
+    def print_debug_info(self):
+        print(f"Nav Frame - Width: {self.frame.winfo_width()}, Height: {self.frame.winfo_height()}")
+        print(f"Content Frame - Width: {self.content_frame.winfo_width()}, Height: {self.content_frame.winfo_height()}")
+        print(f"Root - Width: {self.root.winfo_width()}, Height: {self.root.winfo_height()}")
+
+def main():
+    # login_success = check_login()  # Original login check
+    login_success = True  # Temporarily bypass login for testing
+
+    if login_success:
+        # Initialize and show the dashboard
+        app = AnalyticsApp(root)
+        app.show()
+    else:
+        print("Login failed. Please try again.")
 
 if __name__ == "__main__":
     root = tk.Tk()
     root.title("Dashboard")
-    root.grid_rowconfigure(0, weight=1)
-    root.grid_columnconfigure(0, weight=1)
+    root.geometry("1200x600")
     
     def dummy_logout():
         print("Logged out")

@@ -14,6 +14,7 @@ class AnalyticsApp:
         # Change the background from BLACK to something lighter (black makes content hard to see)
         self.frame = tk.Frame(self.parent, bg="white", bd=2, relief="solid")  # Add border for visibility
         print("AnalyticsApp: __init__ called, frame created")
+        self.frame.pack(fill='both', expand=True)
         self.create_widgets()
     
     def create_widgets(self):

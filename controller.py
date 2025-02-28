@@ -1,3 +1,5 @@
+from captcha_page import CaptchaPage
+
 class AppController:
     def __init__(self, root):
         self.root = root
@@ -5,6 +7,8 @@ class AppController:
         self.views = {}  # Will store view factories or instances
         self.logged_in = False
         self.initializing = False
+        # Register the CAPTCHA view
+        self.register_view("captcha", CaptchaPage)
 
     def register_view(self, name, view_class, *args, **kwargs):
         """Store a factory that instantiates the view lazily."""
@@ -56,7 +60,7 @@ class AppController:
             name = "login"
             view_instance = self.get_view("login")
 
-        # Hide current view first    
+        # Hide current view first if it exists
         if self.current_view:
             print(f"Hiding current view: {self.current_view.__class__.__name__}")
             self.current_view.hide()
@@ -71,6 +75,8 @@ class AppController:
         """Handler for successful login"""
         print("Login success - showing dashboard")
         self.logged_in = True
+        # Register the CAPTCHA view
+        
         self.show_view("dashboard")
 
     def logout(self):
@@ -86,3 +92,32 @@ class AppController:
     def go_to_login(self):
         """Navigate to login page"""
         self.show_view("login")
+
+    def show_view(self, name):
+        """Show the specified view."""
+        if self.current_view:
+            self.current_view.hide()
+        self.current_view = self.get_view(name)
+        if self.current_view:
+            self.current_view.show()
+
+    def on_captcha_success(self):
+        """Handle successful CAPTCHA verification."""
+        print("CAPTCHA verified successfully!")
+        # Destroy the CAPTCHA view to prevent it from being shown again
+        if "captcha" in self.views:
+            captcha_view = self.views["captcha"]
+            if hasattr(captcha_view, 'destroy'):
+                captcha_view.destroy()
+            del self.views["captcha"]
+        
+        # Re-register the CAPTCHA view for future use
+        self.register_view("captcha", CaptchaPage)
+        
+        # Update current_view to None before showing the next view
+        self.current_view = None
+        
+        # Proceed to the next step, e.g., show the dashboard
+        self.show_view("dashboard")
+
+        

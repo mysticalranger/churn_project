@@ -7,6 +7,10 @@ import bcrypt
 from db import Database
 from utils import validate_email, validate_password, handle_error
 from dashboard import DashboardApp
+from captcha.image import ImageCaptcha
+import random
+import string
+from io import BytesIO
 
 class LoginApp:
     def __init__(self, root, controller=None, on_login_success=None, on_register=None, **kwargs):
@@ -31,6 +35,8 @@ class LoginApp:
         self.frame = None
         self.create_widgets()
         self.update_video()
+
+     
 
     def on_login_success(self):
         """Handle successful login with controller or callback"""
@@ -184,6 +190,9 @@ class LoginApp:
         )
         self.forgot_password_link.grid(row=5, column=1,sticky="e", padx=40, pady=(0,5))
 
+               
+        
+
     def update_video(self):
         ret, frame = self.vid.read()
         if ret:
@@ -221,7 +230,11 @@ class LoginApp:
             result = self.db.fetch_one(query, (email,))
             if result and bcrypt.checkpw(password.encode('utf-8'), result['password'].encode('utf-8')):
                 if result['verified']:
-                    self.on_login_success()
+                    print("Authentication successful, showing CAPTCHA")  # Debug statement
+                    if self.controller:
+                        self.controller.show_view("captcha")
+                    else:
+                        self.on_login_success()
                 else:
                     self.show_error("Please verify your email before logging in")
             else:
