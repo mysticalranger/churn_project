@@ -17,125 +17,98 @@ from sklearn.impute import SimpleImputer
 from xgboost import XGBClassifier
 from imblearn.combine import SMOTETomek
 import shap
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
 
 # -------------------------------
 # Data Loading & Preprocessing
 # -------------------------------
-df = pd.read_csv('WA_Fn-UseC_-Telco-Customer-Churn.csv')
-df.duplicated()
-# Convert TotalCharges to numeric (errors coerced to NaN)
-df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
-df.drop(columns=['customerID','Partner','Dependents','MultipleLines'], inplace=True)
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
 
-# Convert 'Churn' to numeric (target variable)
+# Load data
+df = pd.read_csv('WA_Fn-UseC_-Telco-Customer-Churn.csv')
+
+# Remove duplicates
+df = df.drop_duplicates()
+
+# Convert TotalCharges to numeric
+df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
+
+# Drop unnecessary columns (reconsider keeping Partner, Dependents, MultipleLines later)
+df.drop(columns=['customerID'], inplace=True)  # Only drop ID for now
+
+# Convert Churn to numeric
 df['Churn'] = df['Churn'].map({'No': 0, 'Yes': 1})
 
-# Identify categorical columns
+# Handle missing values
+df['TotalCharges'] = df['TotalCharges'].fillna(df['TotalCharges'].median())
+
+# Categorical encoding
 cat_columns = df.select_dtypes(include=['object']).columns.tolist()
+ordinal_columns = ['Contract'] if 'Contract' in cat_columns else []
+binary_columns = [col for col in cat_columns if df[col].nunique() == 2 and col != 'Contract']
+nominal_columns = [col for col in cat_columns if col not in ordinal_columns + binary_columns]
 
-ordinal_columns = []
-binary_columns = []
-nominal_columns = []
-
-if 'Contract' in cat_columns:
-    ordinal_columns.append('Contract')
-    cat_columns.remove('Contract')
-
-for col in cat_columns:
-    if df[col].nunique() == 2:
-        binary_columns.append(col)
-    else:
-        nominal_columns.append(col)
-
+# Ordinal encoding
+contract_mapping = {"Month-to-month": 1, "One year": 2, "Two year": 3}
 if 'Contract' in ordinal_columns:
-    contract_mapping = {"Month-to-month": 1, "One year": 2, "Two year": 3}
     df['Contract'] = df['Contract'].map(contract_mapping)
 
+# Binary encoding
 le = LabelEncoder()
 for col in binary_columns:
     df[col] = le.fit_transform(df[col])
 
+# Nominal encoding
 if nominal_columns:
     df = pd.get_dummies(df, columns=nominal_columns)
 
-# Feature Engineering
-df['MonthlyCharges_per_tenure'] = df['MonthlyCharges'] / (df['tenure'] + 1)
+# Feature engineering
+df['MonthlyCharges_per_tenure'] = df['MonthlyCharges'] / (df['tenure'] + 1)  # +1 avoids division by 0
 df['TotalCharges_per_tenure'] = df['TotalCharges'] / (df['tenure'] + 1)
 df['ShortTenure'] = (df['tenure'] < 12).astype(int)
 df['EngagementScore'] = df['MonthlyCharges'] * df['Contract']
 df['BillingSecurity'] = df['PaperlessBilling'] * df['PaymentMethod_Electronic check']
 
-# -------------------------------
-# Feature Selection
-# -------------------------------
+# Handle NaNs in engineered features
+df[['MonthlyCharges_per_tenure', 'TotalCharges_per_tenure']] = df[['MonthlyCharges_per_tenure', 'TotalCharges_per_tenure']].fillna(0)
+
+# Feature selection
 corr_matrix = df.corr(method='spearman')
 thresh = 0.15
-# selected_features = corr_matrix['Churn'][abs(corr_matrix['Churn']) > thresh].index.tolist()
-selected_features = corr_matrix.index.tolist()
+selected_features = corr_matrix['Churn'][abs(corr_matrix['Churn']) > thresh].index.tolist()
 selected_features.remove('Churn')
 
 X = df[selected_features]
 y = df['Churn']
 
-# -------------------------------
-# Train-Test Split & SMOTETomek
-# -------------------------------
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Split data
+train, val, test = np.split(df.sample(frac=1), [int(0.6*len(df)), int(0.8*len(df))])
 
-imputer = SimpleImputer(strategy='mean')
-X_train = imputer.fit_transform(X_train)
-X_test = imputer.transform(X_test)
+def get_data(data):
+    X = data[selected_features]
+    y = data['Churn']
+    return X, y
 
-smote_tomek = SMOTETomek(random_state=42)
-X_train_res, y_train_res = smote_tomek.fit_resample(X_train, y_train)
+X_train, y_train = get_data(train)
+X_val, y_val = get_data(val)
+X_test, y_test = get_data(test)
 
+# Scale features
+from sklearn.preprocessing import StandardScaler
 scaler = StandardScaler()
-X_train_res = scaler.fit_transform(X_train_res)
+X_train = scaler.fit_transform(X_train)
+X_val = scaler.transform(X_val)
 X_test = scaler.transform(X_test)
 
-# -------------------------------
-# Model Training with XGBoost
-# -------------------------------
-xgb = XGBClassifier(scale_pos_weight=3, 
-                     use_label_encoder=False, eval_metric='logloss', random_state=42)
-xgb.fit(X_train_res, y_train_res)
+# Check class balance
+print("Class distribution for y train :\n", y_train)
+print("Class distribution for x train :\n", X_train)
 
-y_pred = xgb.predict(X_test)
-print("XGBoost Model Accuracy:", accuracy_score(y_test, y_pred))
-print("\nXGBoost Classification Report:\n", classification_report(y_test, y_pred))
-print("\nXGBoost Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
 
-# -------------------------------
-# Hyperparameter Tuning
-# -------------------------------
-param_grid = {
-    'max_depth': [5, 7, 10],
-    'learning_rate': [0.01, 0.05, 0.1],
-    'n_estimators': [100, 200, 300],
-    'subsample': [0.8, 1.0],
-    'colsample_bytree': [0.8, 1.0]
-}
-grid_search = GridSearchCV(XGBClassifier(eval_metric='logloss', random_state=42), param_grid, cv=5, scoring='recall', n_jobs=-1, verbose=1)
-grid_search.fit(X_train_res, y_train_res)
-
-best_xgb = grid_search.best_estimator_
-y_pred_best = best_xgb.predict(X_test)
-print("Tuned XGBoost Accuracy:", accuracy_score(y_test, y_pred_best))
-print("\nTuned XGBoost Classification Report:\n", classification_report(y_test, y_pred_best))
-
-# -------------------------------
-# AUC-ROC Score
-# -------------------------------
-y_proba = best_xgb.predict_proba(X_test)[:, 1]
-roc_auc = roc_auc_score(y_test, y_proba)
-print(f"AUC-ROC Score: {roc_auc:.4f}")
-
-# -------------------------------
-# SHAP Feature Importance
-# -------------------------------
-# explainer = shap.Explainer(best_xgb)
-# shap_values = explainer(X_test)
-# shap.summary_plot(shap_values, X_test)
-
+model_baseline = LogisticRegression()
 
 
