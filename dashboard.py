@@ -22,24 +22,6 @@ class DashboardApp:
         self.hover_style = "Hover.TButton"
         style.configure(self.hover_style, background="#96a6b5")  # Hover background
         
-    def hex_to_rgb(self, hex_color):
-        hex_color = hex_color.lstrip('#')
-        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-
-    def rgb_to_hex(self, rgb):
-        return "#%02x%02x%02x" % rgb
-
-    def interpolate_color(self, start_rgb, end_rgb, factor):
-        return tuple(int(start_rgb[i] + (end_rgb[i] - start_rgb[i]) * factor) for i in range(3))
-
-    def animate_hover_in(self, btn, start_color, end_color, steps=10, delay=20, current=0):
-        # This method can be simplified or removed since ttk uses styles
-        pass
-
-    def animate_hover_out(self, btn, start_color, end_color, steps=10, delay=20, current=0):
-    # This method can be simplified or removed since ttk uses styles
-        pass
-
     def on_hover_enter(self, event):
         btn = event.widget
         # Apply the hover style
@@ -154,18 +136,18 @@ class DashboardApp:
             import matplotlib
             matplotlib.use('TkAgg')
 
-            # Ensure content_frame is visible
-            self.content_frame.grid(sticky="nsew")
+            # Ensure content_frame is visible and positioned in column 1
+            self.content_frame.grid(row=1, column=1, sticky="nsew")  # Explicitly set row and column
 
             # Create and show AnalyticsApp
             self.analytics_app = AnalyticsApp(self.content_frame)
             self.analytics_app.show()
 
-            # Ensure AnalyticsApp fills content_frame properly
-            self.analytics_app.frame.grid(row=0, column=1, sticky="nsew")
-            # Ensure frame expansion
+            # Ensure AnalyticsApp fills content_frame properly in column 0 of content_frame
+            self.analytics_app.frame.grid(row=0, column=0, sticky="nsew")
+            # Ensure frame expansion in content_frame
             self.content_frame.grid_rowconfigure(0, weight=1)
-            self.content_frame.grid_columnconfigure(1, weight=1)
+            self.content_frame.grid_columnconfigure(0, weight=1)
 
             # Update UI
             self.content_frame.update_idletasks()
@@ -177,56 +159,48 @@ class DashboardApp:
             import traceback
             traceback.print_exc()
 
-        
     def show_customer_details(self):
         """Show customer details module"""
         self.clear_content()
         self.customer_details_app = CustomerDetailsApp(self.content_frame)
         self.customer_details_app.show()
-        self.customer_details_app.frame.grid(row=0, column=0, sticky="nsew")
-        # Ensure frame expansion
+        self.customer_details_app.frame.grid(row=0, column=0, sticky="nsew")  # Place in column 0 of content_frame
+        self.content_frame.grid(row=1, column=1, sticky="nsew")  # Ensure content_frame stays in column 1
         self.content_frame.grid_rowconfigure(0, weight=1)
         self.content_frame.grid_columnconfigure(0, weight=1)
         self.content_frame.update_idletasks()
         self.print_debug_info()
 
-        
     def show_settings(self):
         """Show settings module"""
         self.clear_content()
         self.setting_app = SettingsApp(self.content_frame)
         self.setting_app.show()
-        self.setting_app.frame.grid(row=0, column=0, sticky="nsew")
-        # Ensure frame expansion
+        self.setting_app.frame.grid(row=0, column=0, sticky="nsew")  # Place in column 0 of content_frame
+        self.content_frame.grid(row=1, column=1, sticky="nsew")  # Ensure content_frame stays in column 1
         self.content_frame.grid_rowconfigure(0, weight=1)
         self.content_frame.grid_columnconfigure(0, weight=1)
         self.content_frame.update_idletasks()
         self.print_debug_info()
 
-        
     def show_churn_prediction(self):
         """Show churn prediction module"""
         self.clear_content()
         self.churn_app = ChurnApp(self.content_frame)
         self.churn_app.show()
-        self.churn_app.frame.grid(row=0, column=0, sticky="nsew")
-        # Ensure frame expansion
+        self.churn_app.frame.grid(row=0, column=0, sticky="nsew")  # Place in column 0 of content_frame
+        self.content_frame.grid(row=1, column=1, sticky="nsew")  # Ensure content_frame stays in column 1
         self.content_frame.grid_rowconfigure(0, weight=1)
         self.content_frame.grid_columnconfigure(0, weight=1)
         self.content_frame.update_idletasks()
         self.print_debug_info()
 
-        
     def clear_content(self):
         """Clear content area"""
         for widget in self.content_frame.winfo_children():
             widget.destroy()
         
-        # Reconfigure the content_frame with a minimum size
-        self.content_frame.config(width=800, height=500)
-        self.content_frame.grid_propagate(False)  # Prevent grid from changing the size
-        
-        # Ensure row/column configuration allows expansion
+        # Ensure content_frame is ready to receive new content in column 0 of its grid
         self.content_frame.grid_rowconfigure(0, weight=1)
         self.content_frame.grid_columnconfigure(0, weight=1)
         
@@ -272,7 +246,7 @@ class DashboardApp:
             
     def safe_hide_widget(self, widget):
         if widget and widget.winfo_exists():
-            widget.place_forget()  # or widget.grid_forget() or widget.pack_forget()
+            widget.grid_forget()  # Use grid_forget for consistency
         else:
             print("Widget does not exist or has already been destroyed.")
 
@@ -281,13 +255,15 @@ class DashboardApp:
         print(f"Content Frame - Width: {self.content_frame.winfo_width()}, Height: {self.content_frame.winfo_height()}")
         print(f"Root - Width: {self.root.winfo_width()}, Height: {self.root.winfo_height()}")
 
+# Keep your main() function as is for testing
 def main():
     # login_success = check_login()  # Original login check
     login_success = True  # Temporarily bypass login for testing
 
     if login_success:
         # Initialize and show the dashboard
-        app = AnalyticsApp(root)
+        app = DashboardApp(root)
+
         app.show()
     else:
         print("Login failed. Please try again.")
@@ -303,3 +279,4 @@ if __name__ == "__main__":
     app = DashboardApp(root, dummy_logout)
     app.show()
     root.mainloop()
+
