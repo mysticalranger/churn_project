@@ -262,7 +262,8 @@ def main():
 
     if login_success:
         # Initialize and show the dashboard
-        app = AnalyticsApp(root)
+        app = DashboardApp(root)
+
         app.show()
     else:
         print("Login failed. Please try again.")
