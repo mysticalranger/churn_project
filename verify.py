@@ -3,14 +3,15 @@ import mysql.connector
 import bcrypt
 from flask import Flask, request, render_template_string
 import os
-from dotenv import load_dotenv,find_dotenv
-from email_utils import generate_token
-
+from dotenv import load_dotenv, find_dotenv
 # Load environment variables
 load_dotenv(find_dotenv(), override=True)
-public_url = "https://104c-49-43-34-251.ngrok-free.app"  # Add your current URL
+public_url = "https://bfef-103-228-147-209.ngrok-free.app"  # Add your current URL
 os.environ["PUBLIC_URL"] = public_url
 print(f"Manually set PUBLIC_URL: {public_url}")
+from email_utils import generate_token
+
+
 
 app = Flask(__name__)
 

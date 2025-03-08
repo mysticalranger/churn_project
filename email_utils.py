@@ -7,7 +7,7 @@ from email.mime.text import MIMEText
 from gmail_service import get_gmail_service, create_message, send_message
 
 load_dotenv()  # load variables from .env file
-public_url = "https://35e0-103-228-147-209.ngrok-free.app"  # Add your current URL
+public_url = "https://bfef-103-228-147-209.ngrok-free.app"  # Add your current URL
 os.environ["PUBLIC_URL"] = public_url
 print(f"Manually set PUBLIC_URL: {public_url}")
 
