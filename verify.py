@@ -6,7 +6,7 @@ import os
 from dotenv import load_dotenv, find_dotenv
 # Load environment variables
 load_dotenv(find_dotenv(), override=True)
-public_url = "https://bfef-103-228-147-209.ngrok-free.app"  # Add your current URL
+public_url = "https://ba79-103-249-234-94.ngrok-free.app"  # Add your current URL
 os.environ["PUBLIC_URL"] = public_url
 print(f"Manually set PUBLIC_URL: {public_url}")
 from email_utils import generate_token
