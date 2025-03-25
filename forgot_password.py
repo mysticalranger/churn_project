@@ -92,9 +92,13 @@ class ForgotPasswordApp:
 
         try:
             # Make a POST request to the server's /request_reset endpoint.
-            # Adjust the URL to use your PUBLIC_URL (ngrok URL if needed).
+            # Updated to use a configurable URL and better error handling
             url = f"{PUBLIC_URL}/request_reset"
-            response = requests.post(url, data={"email": email})
+            print(f"Sending reset request to: {url}")  # Debug line
+            
+            response = requests.post(url, data={"email": email}, timeout=10)  # Added timeout
+            response.raise_for_status()  # Raise an exception for non-200 responses
+            
             if response.status_code == 200:
                 # For testing, we display the token; in production, the server would send the email.
                 result = response.text
@@ -102,9 +106,12 @@ class ForgotPasswordApp:
                 self.frame.destroy()
                 self.on_back_to_login()
             else:
-                self.show_message("Failed to request password reset")
+                self.show_message(f"Failed to request password reset: {response.text}")
+        except requests.RequestException as e:
+            self.show_message(f"Connection failed: {str(e)}")
+            handle_error(e)
         except Exception as e:
-            self.show_message("Failed to request reset")
+            self.show_message(f"Failed to request reset: {str(e)}")
             handle_error(e)
 
     def destroy_and_back(self):

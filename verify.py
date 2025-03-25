@@ -6,7 +6,7 @@ import os
 from dotenv import load_dotenv, find_dotenv
 # Load environment variables
 load_dotenv(find_dotenv(), override=True)
-public_url = "https://ba79-103-249-234-94.ngrok-free.app"  # Add your current URL
+public_url = "https://0878-103-228-147-209.ngrok-free.app"  # Add your current URL
 os.environ["PUBLIC_URL"] = public_url
 print(f"Manually set PUBLIC_URL: {public_url}")
 from email_utils import generate_token
@@ -76,20 +76,20 @@ def reset_password():
 
     if request.method == "GET":
         # Improved HTML form with show password functionality.
-        form_html = """
+        form_html = f"""
         <!DOCTYPE html>
         <html>
         <head>
           <meta charset="UTF-8">
           <title>Reset Password</title>
           <style>
-            body {
+            body {{
               background-color: #f2f2f2;
               font-family: Arial, sans-serif;
               margin: 0;
               padding: 0;
-            }
-            .container {
+            }}
+            .container {{
               max-width: 400px;
               margin: 80px auto;
               background-color: #fff;
@@ -97,20 +97,20 @@ def reset_password():
               padding: 30px;
               box-shadow: 0 2px 10px rgba(0,0,0,0.1);
               text-align: center;
-            }
-            h3 {
+            }}
+            h3 {{
               color: #333;
-            }
+            }}
             input[type="password"],
-            input[type="text"] {
+            input[type="text"] {{
               width: 100%;
               padding: 12px 20px;
               margin: 10px 0;
               border: 1px solid #ccc;
               border-radius: 4px;
               box-sizing: border-box;
-            }
-            input[type="submit"] {
+            }}
+            input[type="submit"] {{
               width: 100%;
               background-color: #4CAF50;
               color: white;
@@ -119,20 +119,21 @@ def reset_password():
               border: none;
               border-radius: 4px;
               cursor: pointer;
-            }
-            input[type="submit"]:hover {
+            }}
+            input[type="submit"]:hover {{
               background-color: #45a049;
-            }
-            .checkbox-container {
+            }}
+            .checkbox-container {{
               text-align: left;
               margin: 10px 0;
-            }
+            }}
           </style>
         </head>
         <body>
           <div class="container">
             <h3>Reset Your Password</h3>
             <form method="POST">
+              <input type="hidden" name="token" value="{token}"/>
               <input type="password" id="new_password" name="new_password" placeholder="New Password" required/>
               <div class="checkbox-container">
                 <label><input type="checkbox" onclick="togglePassword()"> Show Password</label>
@@ -140,14 +141,14 @@ def reset_password():
               <input type="submit" value="Reset Password"/>
             </form>
             <script>
-              function togglePassword() {
+              function togglePassword() {{
                 var x = document.getElementById("new_password");
-                if (x.type === "password") {
+                if (x.type === "password") {{
                   x.type = "text";
-                } else {
+                }} else {{
                   x.type = "password";
-                }
-              }
+                }}
+              }}
             </script>
           </div>
         </body>
@@ -220,10 +221,20 @@ def request_reset():
             password="riyranagi007*",
             database="churn_db"
         )
-        cursor = conn.cursor()
+        cursor = conn.cursor(dictionary=True)  # Use dictionary cursor for easier access
+        
+        # First, check if the email exists in the database
+        cursor.execute("SELECT * FROM User WHERE email = %s", (email,))
+        user = cursor.fetchone()
+        
+        if not user:
+            # Don't reveal that the email doesn't exist (security best practice)
+            return "If your email is registered, you will receive password reset instructions shortly."
+        
         reset_token = generate_token()
         # Use timezone-aware datetime for expiration.
         reset_token_expiration = datetime.now(timezone.utc) + timedelta(hours=1)
+        
         update_query = """
             UPDATE User SET reset_token = %s, reset_token_expiration = %s
             WHERE email = %s
@@ -231,11 +242,48 @@ def request_reset():
         cursor.execute(update_query, (reset_token, reset_token_expiration, email))
         conn.commit()
 
-        # In production, send an email containing the reset link with the reset_token.
-        # For testing, we return the token.
-        return f"Reset token: {reset_token}"
+        # Send an actual email with the reset link
+        try:
+            reset_link = f"{public_url}/reset_password?token={reset_token}"
+            email_subject = "Password Reset Instructions"
+            email_body = f"""
+Hello,
+
+You requested a password reset for your Churn Prediction App account.
+Please click the following link to reset your password:
+
+{reset_link}
+
+This link will expire in 1 hour.
+
+If you did not request a password reset, please ignore this email.
+
+Best regards,
+The Churn Prediction Team
+            """
+            
+            # Add detailed logging before sending email
+            print(f"DEBUG: About to send email to {email} with reset link {reset_link}")
+            
+            # Use the send_email function from email_utils
+            from email_utils import send_email
+            send_email(email, email_subject, email_body)
+            
+            print("DEBUG: Email sent successfully")
+            return "If your email is registered, you will receive password reset instructions shortly."
+        except Exception as e:
+            # Add more detailed error logging
+            import traceback
+            print(f"ERROR: Failed to send reset email: {e}")
+            print(f"ERROR: Traceback: {traceback.format_exc()}")
+            return f"Error processing request: {str(e)}", 500
+            
     except Exception as e:
-        return f"Error requesting password reset: {e}", 500
+        # Add more detailed error logging
+        import traceback
+        print(f"ERROR: Database operation failed: {e}")
+        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        return f"Error requesting password reset: {str(e)}", 500
     finally:
         if cursor:
             cursor.close()
